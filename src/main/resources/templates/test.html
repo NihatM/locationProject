@@ -48,10 +48,10 @@
         <div class="nav-main">
             <div class="lang-btns">
                 <button class="lang-btn" onclick="translateToEnglish()">
-                    <img  loading="lazy" src="/images/flag-eng.png" alt="English Flag" width="20" height="15">
+                    <img  loading="lazy" src="/images/flag-eng.png" alt="English" width="20" height="15">
                 </button>
                 <button class="lang-btn" onclick="translateToAzerbaijani()">
-                    <img  loading="lazy" src="/images/flag-aze.png" alt="English Flag" width="20" height="15">
+                    <img  loading="lazy" src="/images/flag-aze.png" alt="Azərbaycan" width="20" height="15">
                 </button>
             </div>
             <ul>
@@ -68,15 +68,16 @@
     <nav class="mobile-menu">
         <div class="mobile-menu-main">
             <ul>
-                <li class="log-d"><a class="log-inner" target="_blank">Haqqımızda</a></li>
-                <li class="log-d"><a class="log-inner" target="_blank">əlaqə</a></li>
+                <li class="log-d"><a class="log-inner" th:href="@{/about}">Haqqımızda</a></li>
+                <li class="log-d"><a class="log-inner" th:href="@{/contact}">Əlaqə</a></li>
             </ul>
         </div>
     </nav>
 </header>
-<div id="loadingOverlay"
-     style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
-    <p id="loading-text" style="color: white;">Yüklənir...</p>
+<div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10,10,30,0.85); backdrop-filter: blur(4px); justify-content: center; align-items: center; z-index: 1000; flex-direction: column; gap: 16px;">
+    <img th:src="@{/images/clean-darkline.png}" alt="loading" style="width: 64px; height: 64px; animation: pulse 1.5s ease-in-out infinite;">
+    <p id="loading-text" style="color: rgba(255,255,255,0.8); font-size: 13px; letter-spacing: 2px; text-transform: uppercase;">Yüklənir...</p>
+    <style>@keyframes pulse { 0%, 100% { opacity: 0.4; transform: scale(0.95); } 50% { opacity: 1; transform: scale(1.05); } }</style>
 </div>
 <main>
     <section id="main-section">
@@ -91,7 +92,7 @@
 <!--                <button class="button_map" id="prev-button" style="display: none;">Əvvəlki</button>-->
 <!--                <button class="button_map" id="next-button" style="display: none;">Sonrakı</button>-->
 <!--            </div>-->
-            <div onclick="manageMarkerVisibility()" id="info-message" class="info-message"></div>
+            <div onclick="resetMarkers()" id="info-message" class="info-message"></div>
         </div>
 
         <div id="map" class="main-section-content">
@@ -187,12 +188,12 @@
 
     <p id="non-commercial-text">Sayt qeyri-kommersiya xarakterlidir. <br>
         Reklam xarakteri daşımır və heç bir ianə qəbul edilmir. <br> Sayt daxilində olan məlumatları redaktə etmək və saytdan silmək hüququnu sayt özündə saxlayır.
-        <br> Qeyd olunmuş işarələrə görə məsulliyəti yalnız işarəni qeyd edən şəxslər daşıyır. Ətraflı məlumat üçün <a class="footer-about" href="/about" >səhifəyə keçid edin.</a> <br> © 2025 Bütün hüquqlar qorunur. AR Əqli Mülkiyyət Agentliyində qeydiyyatdan keçmişdir. </p>
+        <br> Qeyd olunmuş işarələrə görə məsulliyəti yalnız işarəni qeyd edən şəxslər daşıyır. Ətraflı məlumat üçün <a class="footer-about" href="/about" >səhifəyə keçid edin.</a> <br> © 2026 Bütün hüquqlar qorunur. AR Əqli Mülkiyyət Agentliyində qeydiyyatdan keçmişdir. </p>
 
 
 </footer>
 <script async defer
-        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC5t7Fy_Pr-B9f6_XD_M88qQo4579eNZ48&libraries=places,marker,streetView,visualization&callback=initMap"></script>
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyC5t7Fy_Pr-B9f6_XD_M88qQo4579eNZ48&libraries=places,marker,streetView,visualization"></script>
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 <!--<script src="/js/modal.js"></script>-->
 <script src="/js/translate.js" defer></script>
