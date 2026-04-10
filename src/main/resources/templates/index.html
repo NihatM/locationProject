@@ -1,84 +1,334 @@
 <!DOCTYPE html>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<html lang="az" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport"
-          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta name="viewport" content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Qərbi Azərbaycanım - Tarixi, Mədəniyyəti və Toponimləri</title>
+
+    <!-- Social sharing meta -->
+    <meta property="og:title" content="Qərbi Azərbaycanım - Tarixi Xəritə">
+    <meta property="og:description" content="Qərbi Azərbaycanın tarixi toponimləri, kəndləri və mədəni irsi - interaktiv xəritədə">
+    <meta property="og:image" content="/images/gerb.png">
+    <meta property="og:type" content="website">
+    <meta name="description" content="Qərbi Azərbaycanın 10.000+ tarixi yer adı, kənd və toponimləri interaktiv xəritədə">
+
     <link rel="shortcut icon" href="/images/gerb.png" type="image/x-icon">
     <link rel="stylesheet" href="/css/map.css">
     <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        }
+        body {
+            background: #1a1a2e;
+        }
+
+        /* Fullscreen map */
         #map {
-            height: 500px;
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
+            height: 100%;
+            z-index: 1;
         }
-        #search-container {
-            margin-bottom: 10px;
-            text-align: center;
+
+        /* Floating header */
+        .floating-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 24px;
+            background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 100%);
+            pointer-events: none;
         }
-        #search-input {
-            width: 60%;
-            padding: 8px;
-            font-size: 16px;
+        .floating-header > * {
+            pointer-events: auto;
         }
-        #search-button {
-            padding: 8px 12px;
-            font-size: 16px;
+        .floating-header .logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-decoration: none;
+        }
+        .floating-header .logo img {
+            width: 44px;
+            height: 48px;
+            object-fit: contain;
+            filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));
+        }
+        .floating-header .logo span {
+            color: #fff;
+            font-size: 15px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.7);
+        }
+        .floating-header .nav-links {
+            display: flex;
+            gap: 6px;
+            list-style: none;
+        }
+        .floating-header .nav-links a {
+            color: rgba(255,255,255,0.9);
+            text-decoration: none;
+            font-size: 13px;
+            font-weight: 500;
+            padding: 8px 14px;
+            border-radius: 8px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(8px);
+            transition: background 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .floating-header .nav-links a:hover {
+            background: rgba(255,255,255,0.25);
+        }
+
+        /* Search bar floating on map */
+        .map-search {
+            position: fixed;
+            top: 16px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 101;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .map-search input {
+            width: 320px;
+            padding: 12px 44px 12px 16px;
+            font-size: 14px;
+            border: none;
+            border-radius: 24px;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+            outline: none;
+            transition: box-shadow 0.2s, width 0.3s;
+        }
+        .map-search input:focus {
+            box-shadow: 0 4px 24px rgba(0,0,0,0.4);
+            width: 380px;
+        }
+        .map-search button {
+            position: absolute;
+            right: 4px;
+            top: 4px;
+            width: 36px;
+            height: 36px;
+            border: none;
+            background: transparent;
             cursor: pointer;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
+        .map-search button svg {
+            width: 18px;
+            height: 18px;
+            stroke: #666;
+        }
+
+        /* Stats badge */
+        .stats-badge {
+            position: fixed;
+            bottom: 24px;
+            left: 24px;
+            z-index: 100;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(8px);
+            color: #fff;
+            padding: 10px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .stats-badge .count {
+            font-weight: 700;
+            font-size: 16px;
+            color: #f0c040;
+        }
+
+        /* Quote banner */
+        .quote-banner {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            z-index: 100;
+            max-width: 340px;
+            background: rgba(0,0,0,0.65);
+            backdrop-filter: blur(10px);
+            color: rgba(255,255,255,0.9);
+            padding: 14px 18px;
+            border-radius: 12px;
+            font-size: 13px;
+            line-height: 1.5;
+            border-left: 3px solid #f0c040;
+        }
+        .quote-banner .quote-text {
+            font-style: italic;
+            margin-bottom: 6px;
+        }
+        .quote-banner .quote-author {
+            font-weight: 600;
+            font-size: 12px;
+            color: rgba(255,255,255,0.7);
+            text-align: right;
+        }
+
+        /* Loading overlay */
+        #loadingOverlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(10, 10, 30, 0.85);
+            backdrop-filter: blur(4px);
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .loader-logo {
+            width: 64px;
+            height: 64px;
+            animation: pulse 1.5s ease-in-out infinite;
+        }
+        .loader-text {
+            color: rgba(255,255,255,0.8);
+            font-size: 14px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 0.4; transform: scale(0.95); }
+            50% { opacity: 1; transform: scale(1.05); }
+        }
+
+        /* Search results dropdown */
+        #search-results {
+            display: none;
+            background: #fff;
+            border-radius: 12px;
+            max-height: 250px;
+            width: 320px;
+            overflow-y: auto;
+            margin-top: 6px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+        }
+        .search-result-item {
+            padding: 10px 14px;
+            cursor: pointer;
+            border-bottom: 1px solid #f0f0f0;
+            transition: background 0.15s;
+        }
+        .search-result-item:hover {
+            background: #f7f7f7;
+        }
+        .search-result-item:last-child {
+            border-bottom: none;
+        }
+
+        #info-message {
+            display: none;
+            margin-top: 6px;
+            background: rgba(255,255,255,0.95);
+            color: #333;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 12px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+        }
+
         .marker-label {
             padding-top: 10px;
             margin-top: 30px;
             text-align: center;
         }
+
+        /* Mobile */
+        @media (max-width: 600px) {
+            .floating-header .logo span { display: none; }
+            .map-search input { width: 240px; }
+            .map-search input:focus { width: 280px; }
+            .quote-banner { display: none; }
+            .stats-badge { bottom: 12px; left: 12px; font-size: 11px; padding: 8px 12px; }
+            .floating-header { padding: 8px 12px; }
+            #search-results { width: 240px; }
+        }
+        @media (max-width: 900px) {
+            .floating-header .nav-links .hide-mobile { display: none; }
+        }
     </style>
-    <title>Zəngəzur</title>
 </head>
-<body th:style="'background-image: url(' + @{/images/bgimg.jpg} + '); background-size: cover; background-position: center;'">
-<div id="loadingOverlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); justify-content: center; align-items: center; z-index: 1000;">
-    <p style="color: white;">Loading...</p>
+<body>
+
+<!-- Loading overlay -->
+<div id="loadingOverlay">
+    <img class="loader-logo" th:src="@{/images/gerb.png}" alt="loading">
+    <div class="loader-text">Yüklənir...</div>
 </div>
-<main class="container">
 
-    <section class="section-1">
-        <nav>
-            <div class="nav-main">
-                <div class="nav-logo">
-                    <a href="#"><img th:src="@{/images/gerb.png}" alt="kalbajar"></a>
-                </div>
-                <ul>
-                    <li class="log-d" ><a class="log-inner" target="_blank" th:href="@{/login}">Daxil ol</a></li>
-                    <li class="log-d"><a class="log-inner" target="_blank" th:href="@{/about}">Haqqımızda</a></li>
-                    <li class="log-d"><a class="log-inner" target="_blank" th:href="@{/contact}">əlaqə</a></li>
-                </ul>
-                <div class="nav-mobile-menu" id="nav-mobile-menu">
-                    <img src="https://rvs-hosterr-waitlist-page.vercel.app/Assets/Hamburger-Menu.svg" alt="burger btn">
-                </div>
-            </div>
-        </nav>
+<!-- Floating header -->
+<header class="floating-header">
+    <a href="/" class="logo">
+        <img th:src="@{/images/gerb.png}" alt="Qərbi Azərbaycan">
+        <span>Qərbi Azərbaycanım</span>
+    </a>
+    <ul class="nav-links">
+        <li><a th:href="@{/about}">Haqqımızda</a></li>
+        <li><a th:href="@{/contact}">Əlaqə</a></li>
+    </ul>
+</header>
 
-        <nav class="mobile-menu">
-            <div class="mobile-menu-main">
-                <ul>
-                    <li class="log-d"><a class="log-inner" target="_blank" th:href="@{/login}">Daxil ol</a></li>
-                </ul>
-            </div>
-        </nav>
+<!-- Search bar -->
+<div class="map-search">
+    <div style="position: relative;">
+        <input type="text" id="search-input" placeholder="Yer adı axtarın...">
+        <button id="search-button">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+        </button>
+    </div>
+    <div id="search-results"></div>
+    <div id="info-message"></div>
+</div>
 
-        <div class="section-1-main">
-            <div id="search-container">
-                <input type="text" id="search-input" placeholder="Axtarış...">
-                <button id="search-button">Axtar</button>
-            </div>
-            <div class="section-1-content" id="map">
+<!-- Map -->
+<div id="map"></div>
 
-            </div>
-        </div>
-    </section>
+<!-- Stats badge -->
+<div class="stats-badge">
+    <span class="count" id="marker-count">0</span>
+    <span>tarixi yer adı xəritədə</span>
+</div>
 
-</main>
-<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA3udL3KCDrHNVCo59XmW6p1ffm6RjVXPk&libraries=places,marker,streetView,visualization&callback=initMap" ></script>
-    <script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
+<!-- Quote -->
+<div class="quote-banner">
+    <div class="quote-text">"Qərbi Azərbaycandan olan soydas̏larımızın nəvələri tarixi diyarımız olan Qərbi Azərbaycana qayıdacaqlar."</div>
+    <div class="quote-author">— İlham Əliyev</div>
+</div>
+
+<script async defer src="https://maps.googleapis.com/maps/api/js?key=AIzaSyA3udL3KCDrHNVCo59XmW6p1ffm6RjVXPk&libraries=places,marker,streetView,visualization&callback=initMap"></script>
+<script src="https://unpkg.com/@googlemaps/markerclusterer/dist/index.min.js"></script>
 <script type="module" src="/js/index.js"></script>
 </body>
 </html>
