@@ -15,7 +15,7 @@ const searchInput = document.getElementById("search-input");
 let lastOpenedInfoWindow = null;
 const infoMessage = document.getElementById("info-message");
 
-navEl.addEventListener("click", () => nav.classList.toggle("active"));
+if (navEl) navEl.addEventListener("click", () => nav.classList.toggle("active"));
 searchButton.addEventListener("click", handleSearch);
 searchInput.addEventListener("input", debounce(handleSearch, 300));
 
@@ -352,4 +352,4 @@ searchInput.addEventListener("focus", () => {
     }
 });
 
-window.onload = initMap;
+window.initMap = initMap;
