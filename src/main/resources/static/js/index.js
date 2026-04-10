@@ -19,6 +19,7 @@ const infoMessage = document.getElementById("info-message");
 if (navEl) navEl.addEventListener("click", () => nav.classList.toggle("active"));
 searchButton.addEventListener("click", handleSearch);
 searchInput.addEventListener("input", debounce(handleSearch, 300));
+if (infoMessage) infoMessage.addEventListener("click", resetMarkers);
 
 /**
  * marker fetchi və xəritə
@@ -135,7 +136,7 @@ function manageMarkerVisibility() {
     isManagingVisibility = true;
     const bounds = map.getBounds();
     const currentZoom = map.getZoom();
-    if (!bounds || !allMarkerData.length) return;
+    if (!bounds || !allMarkerData.length) { isManagingVisibility = false; return; }
 
     markers.forEach(marker => marker.setMap(null));
     markers = [];
@@ -284,6 +285,9 @@ function focusOnMarker(marker) {
     if (marker && marker.getPosition) {
         map.setCenter(marker.getPosition());
         map.setZoom(15);
+        if (marker.getTitle()) {
+            history.replaceState(null, '', '#place=' + encodeURIComponent(marker.getTitle()));
+        }
     }
 }
 
@@ -356,6 +360,25 @@ searchInput.addEventListener("focus", () => {
         document.getElementById("search-results").style.display = "block";
     }
 });
+
+// Check URL hash for shareable place link
+function checkHashPlace() {
+    const hash = window.location.hash;
+    if (hash.startsWith('#place=')) {
+        const placeName = decodeURIComponent(hash.substring(7));
+        if (placeName && searchInput) {
+            searchInput.value = placeName;
+            // Wait for map and data to load, then search
+            const waitForData = setInterval(() => {
+                if (allMarkerData.length > 0) {
+                    clearInterval(waitForData);
+                    handleSearch();
+                }
+            }, 500);
+        }
+    }
+}
+window.addEventListener('load', checkHashPlace);
 
 window.initMap = initMap;
 if (window.google && window.google.maps) {
