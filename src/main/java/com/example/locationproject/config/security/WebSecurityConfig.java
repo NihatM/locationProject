@@ -53,7 +53,7 @@ public class WebSecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         return http
-                .csrf(csrf -> csrf.disable())
+                .csrf(csrf -> csrf.disable()).headers(headers -> headers.cacheControl(cache -> cache.disable()))
                 .cors(cors -> cors
                         .configurationSource(corsConfigurationSource())
                 )
