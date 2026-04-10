@@ -5,6 +5,7 @@ let allMarkerData = [];
 let foundMarkers = [];
 let currentIndex = 0;
 let isSearching = false;
+let isManagingVisibility = false;
 
 
 const navEl = document.getElementById("nav-mobile-menu");
@@ -45,7 +46,7 @@ async function initMap() {
     try {
         await fetchMarkersAndDisplay();
         map.addListener('idle', () => {
-            if (!isSearching) manageMarkerVisibility();
+            if (!isSearching && !isManagingVisibility) manageMarkerVisibility();
         });
     } catch (error) {
         console.error("Xəta:", error);
@@ -129,6 +130,8 @@ function createMarkerFromData(markerData) {
  * Only create markers for the current viewport - massive performance improvement
  */
 function manageMarkerVisibility() {
+    if (isManagingVisibility) return;
+    isManagingVisibility = true;
     const bounds = map.getBounds();
     const currentZoom = map.getZoom();
     if (!bounds || !allMarkerData.length) return;
@@ -165,6 +168,7 @@ function manageMarkerVisibility() {
             markers: markers
         });
     }
+    isManagingVisibility = false;
 }
 
 function getLocalizedTypeLabel(type) {
@@ -353,3 +357,6 @@ searchInput.addEventListener("focus", () => {
 });
 
 window.initMap = initMap;
+if (window.google && window.google.maps) {
+    initMap();
+}
