@@ -380,9 +380,9 @@ function checkHashPlace() {
 }
 window.addEventListener('load', checkHashPlace);
 
-// Bridge pattern: works with both callback=initMap and direct loading
+// Works with callback=initMap (bridge pattern) AND without callback (direct loading)
 window._realInitMap = initMap;
 window.initMap = initMap;
-if (window._mapReady) {
+if (window._mapReady || (window.google && window.google.maps)) {
     initMap();
 }
