@@ -67,6 +67,7 @@ async function fetchMarkersAndDisplay() {
         markers.forEach(marker => marker.setMap(null));
         markers = [];
         allMarkerData = data;
+        document.getElementById("marker-count").textContent = allMarkerData.length.toLocaleString();
         if (markerClusterer) {
             markerClusterer.clearMarkers();
             markerClusterer = null;
