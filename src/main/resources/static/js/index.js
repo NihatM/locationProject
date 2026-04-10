@@ -1,5 +1,7 @@
 let map;
 let markers = [];
+let markerClusterer = null;
+let allMarkerData = [];
 let foundMarkers = [];
 let currentIndex = 0;
 let isSearching = false;
@@ -10,17 +12,12 @@ const nav = document.querySelector("nav");
 const loadingOverlay = document.getElementById("loadingOverlay");
 const searchButton = document.getElementById("search-button");
 const searchInput = document.getElementById("search-input");
-// const prevButton = document.getElementById("prev-button");
-// const nextButton = document.getElementById("next-button");
 let lastOpenedInfoWindow = null;
 const infoMessage = document.getElementById("info-message");
 
 navEl.addEventListener("click", () => nav.classList.toggle("active"));
 searchButton.addEventListener("click", handleSearch);
 searchInput.addEventListener("input", debounce(handleSearch, 300));
-// searchInput.addEventListener("input", throttle(handleSearch, 300));
-// prevButton.addEventListener("click", () => navigateMarkers(-1));
-// nextButton.addEventListener("click", () => navigateMarkers(1));
 
 /**
  * marker fetchi və xəritə
@@ -55,8 +52,9 @@ async function initMap() {
         alert("xəritənin yüklənməsində xəta var. Zəhmət olmasa bizimlə əlaqə saxlayın və yaxud bir az sonra yenidən dənəyin");
     }
 }
+
 /**
- * api fetch
+ * api fetch - only store data, don't create marker objects
  */
 async function fetchMarkersAndDisplay() {
     toggleLoading(true);
@@ -68,7 +66,11 @@ async function fetchMarkersAndDisplay() {
         const data = await response.json();
         markers.forEach(marker => marker.setMap(null));
         markers = [];
-        data.forEach(markerData => addMarkerToMap(markerData));
+        allMarkerData = data;
+        if (markerClusterer) {
+            markerClusterer.clearMarkers();
+            markerClusterer = null;
+        }
         manageMarkerVisibility();
     } catch (error) {
         console.error("Error fetching markers:", error);
@@ -79,9 +81,9 @@ async function fetchMarkersAndDisplay() {
 }
 
 /**
- * xəritəyə markerlərin əlavə olunması
+ * Create a single marker object from data
  */
-function addMarkerToMap(markerData) {
+function createMarkerFromData(markerData) {
     const mapMarker = new google.maps.Marker({
         position: { lat: markerData.latitude, lng: markerData.longitude },
         map: map,
@@ -94,7 +96,7 @@ function addMarkerToMap(markerData) {
             className: 'marker-label'
         },
         icon: getIcon(markerData.type || markerData.markerType),
-        visible: false
+        visible: true
     });
 
     const originalDescription = markerData.description;
@@ -115,59 +117,62 @@ function addMarkerToMap(markerData) {
         title: markerData.title,
         originalDescription: originalDescription,
         translations: translations,
-        infoWindow: infoWindow
+        infoWindow: infoWindow,
+        type: markerData.type || markerData.markerType
     };
 
-    markers.push(mapMarker);
+    return mapMarker;
 }
 
 /**
- * bounda əsasən markerlərin görünməyi
+ * Only create markers for the current viewport - massive performance improvement
  */
 function manageMarkerVisibility() {
     const bounds = map.getBounds();
     const currentZoom = map.getZoom();
+    if (!bounds || !allMarkerData.length) return;
 
-    markers.forEach(marker => {
-        const markerPosition = marker.getPosition();
-        const markerType = getMarkerType(marker);
-        let shouldBeVisible = false;
+    markers.forEach(marker => marker.setMap(null));
+    markers = [];
+    if (markerClusterer) {
+        markerClusterer.clearMarkers();
+        markerClusterer = null;
+    }
+
+    const visibleData = allMarkerData.filter(md => {
+        const pos = new google.maps.LatLng(md.latitude, md.longitude);
+        const type = (md.type || md.markerType || '').toLowerCase();
 
         if (currentZoom >= 15) {
-            shouldBeVisible = bounds.contains(markerPosition);
-        } else if (
-            currentZoom >= 12 &&
-            currentZoom < 18 &&
-            (markerType === 'building' || markerType === 'village')
-        ) {
-            shouldBeVisible = bounds.contains(markerPosition);
-        } else if (
-            currentZoom < 12 &&
-            (markerType === 'city' || markerType === 'region')
-        ) {
-            shouldBeVisible = bounds.contains(markerPosition);
+            return bounds.contains(pos);
+        } else if (currentZoom >= 12 && currentZoom < 18) {
+            return (type === 'building' || type === 'village') && bounds.contains(pos);
+        } else if (currentZoom < 12) {
+            return (type === 'city' || type === 'region') && bounds.contains(pos);
         }
-
-        marker.setVisible(shouldBeVisible);
+        return false;
     });
-}
 
-/**
- * axtarış filteri
- */
+    visibleData.forEach(md => {
+        const marker = createMarkerFromData(md);
+        markers.push(marker);
+    });
+
+    if (markers.length > 50 && window.markerClusterer) {
+        markerClusterer = new window.markerClusterer.MarkerClusterer({
+            map: map,
+            markers: markers
+        });
+    }
+}
 
 function getLocalizedTypeLabel(type) {
     switch (type.toLowerCase()) {
-        case 'building':
-            return 'Kənd';
-        case 'region':
-            return 'Rayon';
-        case 'village':
-            return 'Xaraba';
-        case 'city':
-            return 'Şəhər';
-        default:
-            return 'Yer adı';
+        case 'building': return 'Kənd';
+        case 'region': return 'Rayon';
+        case 'village': return 'Xaraba';
+        case 'city': return 'Şəhər';
+        default: return 'Yer adı';
     }
 }
 
@@ -204,12 +209,8 @@ function renderSearchResults(results) {
             currentIndex = index;
             focusOnMarker(marker);
             document.getElementById("search-results").style.display = "none";
-
-            const searchInput = document.getElementById("search-input");
-            if (searchInput) {
-                searchInput.value = "";
-                //handleSearch();
-            }
+            const si = document.getElementById("search-input");
+            if (si) si.value = "";
         });
 
         container.appendChild(item);
@@ -228,43 +229,39 @@ function handleSearch() {
         infoMessage.style.display = "none";
         return;
     }
-    infoMessage.textContent = `Digər pinləri göstər`;
+    infoMessage.textContent = 'Digər pinləri göstər';
     infoMessage.style.display = "block";
 
-    markers.forEach(marker => marker.setVisible(false));
+    markers.forEach(marker => marker.setMap(null));
+    markers = [];
+    if (markerClusterer) {
+        markerClusterer.clearMarkers();
+        markerClusterer = null;
+    }
 
-
-    foundMarkers = markers
-        .filter(marker => marker.getTitle().toLowerCase().includes(searchText))
+    const matchingData = allMarkerData
+        .filter(md => (md.title || '').toLowerCase().includes(searchText))
         .sort((a, b) => {
-            const priority = {
-                city: 1,
-                region: 2,
-                building: 3,
-                village: 4,
-                default: 99
-            };
-
-            const typeA = getMarkerType(a).toLowerCase();
-            const typeB = getMarkerType(b).toLowerCase();
-
-            const rankA = priority[typeA] !== undefined ? priority[typeA] : priority.default;
-            const rankB = priority[typeB] !== undefined ? priority[typeB] : priority.default;
-
-            return rankA - rankB;
+            const priority = { city: 1, region: 2, building: 3, village: 4 };
+            const typeA = (a.type || a.markerType || '').toLowerCase();
+            const typeB = (b.type || b.markerType || '').toLowerCase();
+            return (priority[typeA] || 99) - (priority[typeB] || 99);
         });
 
+    foundMarkers = [];
+    matchingData.forEach(md => {
+        const marker = createMarkerFromData(md);
+        foundMarkers.push(marker);
+        markers.push(marker);
+    });
+
     if (foundMarkers.length > 0) {
-        foundMarkers.forEach(marker => marker.setVisible(true));
         currentIndex = 0;
         focusOnMarker(foundMarkers[currentIndex]);
     }
     renderSearchResults(foundMarkers);
 }
 
-/**
- * inputun təmizlənməsi əsasında markerlərin bərpası
- */
 function resetMarkers() {
     isSearching = false;
     searchInput.value = "";
@@ -272,12 +269,11 @@ function resetMarkers() {
     infoMessage.style.display = "none";
     document.getElementById("search-results").style.display = "none";
     hideNavigationButtons();
+    markers.forEach(marker => marker.setMap(null));
+    markers = [];
     manageMarkerVisibility();
 }
 
-/**
- * markerə fokus
- */
 function focusOnMarker(marker) {
     if (marker && marker.getPosition) {
         map.setCenter(marker.getPosition());
@@ -285,46 +281,23 @@ function focusOnMarker(marker) {
     }
 }
 
-/**
- * nəticər arasında bağlantı
- */
 function navigateMarkers(step) {
     if (foundMarkers.length > 1) {
         currentIndex = (currentIndex + step + foundMarkers.length) % foundMarkers.length;
-        markers.forEach(marker => marker.setVisible(false));
+        markers.forEach(marker => marker.setMap(null));
         const markerToFocus = foundMarkers[currentIndex];
+        markerToFocus.setMap(map);
         markerToFocus.setVisible(true);
         focusOnMarker(markerToFocus);
     }
 }
 
-/**
- * görünməyin dəyişməyi
- */
-// function updateNavigationButtons() {
-//     const visible = foundMarkers.length > 1 ? "block" : "none";
-//     prevButton.style.display = visible;
-//     nextButton.style.display = visible;
-// }
+function hideNavigationButtons() {}
 
-// /**
-//  * əvvəl sonra buttonların görünüşü
-//  */
-// function hideNavigationButtons() {
-//     prevButton.style.display = "none";
-//     nextButton.style.display = "none";
-// }
-
-/**
- * yüklənmə zamanı display
- */
 function toggleLoading(show) {
     if (loadingOverlay) loadingOverlay.style.display = show ? 'flex' : 'none';
 }
 
-/**
- * markerlərin iconları
- */
 function getIcon(type) {
     const markerIcons = {
         restaurant: '/images/icons/res.svg',
@@ -339,13 +312,9 @@ function getIcon(type) {
         city: '/images/icons/city.svg',
         default: '/images/icons/pin.svg'
     };
-
     return markerIcons[type.toLowerCase()] || markerIcons.default;
 }
 
-/**
- * növünü əldə etmək
- */
 function getMarkerType(marker) {
     const icon = marker.getIcon();
     const markerIcons = {
@@ -361,31 +330,8 @@ function getMarkerType(marker) {
         city: '/images/icons/city.svg',
         default: '/images/icons/pin.svg'
     };
-
     return Object.keys(markerIcons).find(type => markerIcons[type] === icon) || 'other';
 }
-
-
-// function throttle(func, limit) {
-//     let lastFunc;
-//     let lastRan;
-//     return function () {
-//         const context = this;
-//         const args = arguments;
-//         if (!lastRan) {
-//             func.apply(context, args);
-//             lastRan = Date.now();
-//         } else {
-//             clearTimeout(lastFunc);
-//             lastFunc = setTimeout(function () {
-//                 if (Date.now() - lastRan >= limit) {
-//                     func.apply(context, args);
-//                     lastRan = Date.now();
-//                 }
-//             }, limit - (Date.now() - lastRan));
-//         }
-//     };
-// }
 
 function debounce(func, delay) {
     let timerId;
@@ -398,6 +344,7 @@ function debounce(func, delay) {
         }, delay);
     };
 }
+
 searchInput.addEventListener("focus", () => {
     if (foundMarkers.length > 0) {
         document.getElementById("search-results").style.display = "block";
